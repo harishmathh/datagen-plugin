@@ -29,7 +29,7 @@ def main(argv):
     n_ds = len(recipe["datasets"])
     n_ent = len(recipe.get("entities", {}))
     n_cols = sum(len(d["columns"]) for d in recipe["datasets"])
-    print(f"VALID: '{recipe['meta'].get('name')}' — {n_ds} dataset(s), "
+    print(f"VALID: '{recipe['meta'].get('name')}', {n_ds} dataset(s), "
           f"{n_ent} entity pool(s), {n_cols} column(s), seed={recipe['meta']['seed']}.")
     return 0
 

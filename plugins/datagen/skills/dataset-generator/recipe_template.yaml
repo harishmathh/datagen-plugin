@@ -1,5 +1,5 @@
 # =============================================================================
-# DataGen recipe — annotated reference.
+# DataGen recipe, annotated reference.
 # A recipe is a deterministic, declarative spec for generating one or more
 # LINKED datasets. The engine reads this file and emits one CSV per dataset
 # plus a validation report. Validated against engine/recipe.schema.json.

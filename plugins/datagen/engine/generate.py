@@ -1,4 +1,4 @@
-"""DataGen generation engine — CLI entrypoint.
+"""DataGen generation engine, CLI entrypoint.
 
 Reads a recipe.yaml, builds every dataset deterministically (seeded), enforces
 constraints, links tables via shared entity pools, fills LLM/Faker columns, and

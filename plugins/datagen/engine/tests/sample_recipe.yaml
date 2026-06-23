@@ -1,6 +1,6 @@
 meta:
   name: brightbasket_segmentation
-  description: Smoke-test recipe — 4 linked tables for retail customer segmentation.
+  description: Smoke-test recipe, 4 linked tables for retail customer segmentation.
   seed: 42
   version: "0.1.0"
 

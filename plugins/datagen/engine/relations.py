@@ -36,7 +36,7 @@ def induce_correlation(
 
 
 def _norm_ppf(p: np.ndarray) -> np.ndarray:
-    """Inverse normal CDF (Acklam's algorithm) — avoids a scipy dependency."""
+    """Inverse normal CDF (Acklam's algorithm), avoids a scipy dependency."""
     a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02,
          1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00]
     b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02,

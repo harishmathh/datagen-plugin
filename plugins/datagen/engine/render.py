@@ -146,7 +146,7 @@ def render_spec(md_path: str, out_path: str) -> None:
     for l in md.splitlines():
         if l.startswith("# "):
             title = l[2:].strip(); break
-    body = '<p class="sub">Research specification &mdash; review the grounded numbers and assumptions, then confirm to compile a generation recipe.</p>'
+    body = '<p class="sub">Domain research report. Review the grounded numbers and assumptions, then confirm.</p>'
     body += _md_to_html(md)
     Path(out_path).write_text(_page(title, body), encoding="utf-8")
 
@@ -155,7 +155,7 @@ def render_spec(md_path: str, out_path: str) -> None:
 
 def _dist_summary(d: Dict[str, Any]) -> str:
     if not d:
-        return '<span class="muted">&mdash;</span>'
+        return '<span class="muted">n/a</span>'
     kind = d.get("kind", "?")
     parts = [f'<span class="pill info">{_esc(kind)}</span>']
     keys = [k for k in ("mean", "std", "min", "max", "lam", "alpha", "beta", "p", "shape", "scale") if k in d]
@@ -261,7 +261,7 @@ def render_report(json_path: str, out_path: str) -> None:
     val = report.get("validation", {})
     title = f"Validation: {report.get('recipe','dataset')}"
 
-    body = [f"<h1>Generated dataset &mdash; validation</h1>"]
+    body = [f"<h1>Generated dataset, validation</h1>"]
     body.append(f'<p class="sub">Recipe <code>{_esc(report.get("recipe",""))}</code>. '
                 'Every dataset below was generated deterministically and checked against the recipe.</p>')
 
@@ -311,7 +311,7 @@ def render_report(json_path: str, out_path: str) -> None:
                     f'{_esc(k)} <span class="muted">{v}</span>' for k, v in list(tv.items())[:5])
                 stats += f' <span class="muted">({s.get("n_unique","?")} unique)</span>'
             else:
-                stats = '<span class="muted">&mdash;</span>'
+                stats = '<span class="muted">n/a</span>'
             fid = ""
             f = s.get("fidelity")
             if f and "mean_target" in f:
@@ -322,7 +322,7 @@ def render_report(json_path: str, out_path: str) -> None:
                     + "".join(rows) + "</tbody></table></div>")
         drift = d.get("categorical_drift")
         if drift:
-            body.append("<h3>Categorical drift (actual &minus; target share)</h3>")
+            body.append("<h3>Categorical drift (actual minus target share)</h3>")
             for col, dd in drift.items():
                 chips = " ".join(
                     f'<span class="pill {"good" if abs(v)<0.03 else "warn"}">{_esc(k)} {v:+.2f}</span>'

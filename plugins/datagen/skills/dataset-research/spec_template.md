@@ -1,9 +1,11 @@
-# Dataset Research Spec — {{BUSINESS_NAME}}
+# Domain Research Report, {{BUSINESS_NAME}}
 
-> **Status:** DRAFT for review · **Generated:** {{DATE}} · **Spec version:** 1.0
-> This document grounds the synthetic-dataset request in real-world data. Every
-> non-obvious number carries a citation. Review the assumptions, correct
-> anything off, then confirm to proceed to recipe compilation.
+> **Status:** DRAFT for review · **Generated:** {{DATE}} · **Version:** 1.0
+> This report grounds the request in real-world data. Every non-obvious number
+> carries a citation. Read the assumptions, correct anything that looks off,
+> then confirm. If this is part of a dataset run, confirming lets recipe
+> compilation begin; if you only wanted the research, this report is the
+> deliverable.
 
 ---
 
@@ -66,14 +68,14 @@ recipe will encode.
 Real-world dependencies the data must respect, so the synthetic data is
 internally consistent (not just marginally realistic).
 
-- **Correlations:** e.g. spend ↑ with frequency (ρ≈0.5–0.7); premium share ↑
-  with income; engagement ↓ with age.
-- **Conditional logic:** e.g. families → larger baskets, more weekend visits;
-  young singles → higher app usage, lower spend.
+- **Correlations:** e.g. spend rises with frequency (rho about 0.5 to 0.7);
+  premium share rises with income; engagement falls with age.
+- **Conditional logic:** e.g. families have larger baskets and more weekend
+  visits; young singles have higher app usage and lower spend.
 - **Hard constraints:** e.g. `num_children < household_size`; `spend >= 0`;
   `tenure_months <= age*12`.
-- **Outliers / edge cases:** whales, dormant accounts, returns-heavy customers —
-  with realistic prevalence.
+- **Outliers / edge cases:** whales, dormant accounts, returns-heavy customers,
+  each with a realistic prevalence.
 
 ## 6. Proposed dataset blueprint
 
@@ -100,7 +102,7 @@ decision is needed before generating.
 
 A numbered list of every source consulted, with what was drawn from each.
 
-1. [Title]({{URL}}) — used for: …
+1. [Title]({{URL}}), used for: …
 2. …
 
 ---
