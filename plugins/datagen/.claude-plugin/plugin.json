@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "description": "Generate synthetic yet realistic datasets from a business context. Two skills: Dataset-Research (web-grounded domain research → reviewable spec) and Dataset-Generator (spec → YAML recipe → multi-table datasets with referential integrity, distributions, constraints, and LLM text columns).",
   "author": {
-    "name": "HarishMaths1972"
+    "name": "harishmathh"
   },
-  "homepage": "https://github.com/HarishMaths1972/datagen-plugin",
+  "homepage": "https://github.com/harishmathh/datagen-plugin",
   "license": "MIT",
   "keywords": [
     "synthetic-data",

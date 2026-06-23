@@ -33,7 +33,7 @@ the second gate.
 ## Install
 
 ```
-/plugin marketplace add HarishMaths1972/datagen-plugin
+/plugin marketplace add harishmathh/datagen-plugin
 /plugin install datagen
 ```
 

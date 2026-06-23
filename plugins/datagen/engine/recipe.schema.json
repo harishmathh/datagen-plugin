@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/HarishMaths1972/datagen-plugin/recipe.schema.json",
+  "$id": "https://github.com/harishmathh/datagen-plugin/recipe.schema.json",
   "title": "DataGen Recipe",
   "description": "A declarative, deterministic recipe for generating one or more linked synthetic datasets.",
   "type": "object",
