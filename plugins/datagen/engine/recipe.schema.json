@@ -1,0 +1,238 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/HarishMaths1972/datagen-plugin/recipe.schema.json",
+  "title": "DataGen Recipe",
+  "description": "A declarative, deterministic recipe for generating one or more linked synthetic datasets.",
+  "type": "object",
+  "required": ["meta", "datasets"],
+  "additionalProperties": false,
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["name", "seed"],
+      "additionalProperties": true,
+      "properties": {
+        "name": {"type": "string"},
+        "description": {"type": "string"},
+        "spec_ref": {"type": "string", "description": "Relative path to the spec.md this recipe was derived from."},
+        "seed": {"type": "integer", "description": "Master seed; every dataset derives a per-table seed from this for reproducibility."},
+        "version": {"type": "string"}
+      }
+    },
+    "entities": {
+      "type": "object",
+      "description": "Shared entity pools that multiple datasets reference, enabling referential integrity (e.g. a customer pool keyed by customer_id).",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["key", "count"],
+        "additionalProperties": false,
+        "properties": {
+          "key": {"type": "string", "description": "Name of the id column for this entity."},
+          "count": {"type": "integer", "minimum": 1},
+          "id_format": {
+            "type": "string",
+            "description": "Python format string for the id, e.g. 'CUST{:07d}'. Defaults to '{name}{:08d}'."
+          }
+        }
+      }
+    },
+    "datasets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/definitions/dataset"}
+    }
+  },
+  "definitions": {
+    "dataset": {
+      "type": "object",
+      "required": ["name", "columns"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string"},
+        "description": {"type": "string"},
+        "rows": {
+          "type": ["integer", "string"],
+          "description": "Row count. Integer, or 'per:<entity>' to emit one row per entity member, or 'per:<entity>*N' for N rows per member."
+        },
+        "grain": {"type": "string", "description": "Human description of one row (e.g. 'one row per customer')."},
+        "primary_entity": {
+          "type": "string",
+          "description": "Name of an entity in `entities` that this table is keyed on. Its key column is injected automatically."
+        },
+        "inherit": {
+          "type": "array",
+          "description": "Inherit columns from a sibling dataset that shares this dataset's primary_entity, so distributions/constraints here can condition on them. Inherited columns are joined in on the shared key but NOT written to this table's CSV unless also listed in `keep_inherited`.",
+          "items": {
+            "type": "object",
+            "required": ["from", "columns"],
+            "additionalProperties": false,
+            "properties": {
+              "from": {"type": "string", "description": "Name of the sibling dataset to inherit from."},
+              "columns": {"type": "array", "items": {"type": "string"}},
+              "keep": {"type": "boolean", "default": false, "description": "If true, the inherited columns are also written to this table's output."}
+            }
+          }
+        },
+        "foreign_keys": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["column", "references"],
+            "additionalProperties": false,
+            "properties": {
+              "column": {"type": "string"},
+              "references": {"type": "string", "description": "entity name whose key this FK points at"}
+            }
+          }
+        },
+        "columns": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {"$ref": "#/definitions/column"}
+        },
+        "constraints": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/constraint"}
+        }
+      }
+    },
+    "column": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": true,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["numeric", "integer", "categorical", "boolean", "datetime", "date", "id", "derived", "text", "faker"]
+        },
+        "description": {"type": "string", "description": "What this column represents in the real world."},
+        "unit": {"type": "string"},
+        "nullable": {"type": "number", "minimum": 0, "maximum": 1, "description": "Fraction of values to set null (missingness)."},
+        "distribution": {"$ref": "#/definitions/distribution"},
+        "outliers": {
+          "type": "object",
+          "description": "Inject realistic outliers after sampling.",
+          "additionalProperties": false,
+          "properties": {
+            "fraction": {"type": "number", "minimum": 0, "maximum": 0.5},
+            "kind": {"type": "string", "enum": ["high", "low", "both"]},
+            "magnitude": {"type": "number", "description": "How many stds (or x the value) the outlier deviates."}
+          }
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Columns that must be generated before this one (for derived/conditional columns)."
+        },
+        "expr": {
+          "type": "string",
+          "description": "For type=derived: a vectorized pandas/numpy expression over other columns, e.g. 'age - 18 - randint(0,5)'."
+        },
+        "conditional": {
+          "type": "array",
+          "description": "Conditional distributions: pick a distribution based on the value of another column.",
+          "items": {
+            "type": "object",
+            "required": ["when", "distribution"],
+            "properties": {
+              "when": {"type": "string", "description": "A boolean expression over already-generated columns, e.g. \"segment == 'Premium'\"."},
+              "distribution": {"$ref": "#/definitions/distribution"}
+            }
+          }
+        },
+        "correlate_with": {
+          "type": "object",
+          "description": "Induce a target Pearson correlation with another already-generated numeric column.",
+          "additionalProperties": false,
+          "properties": {
+            "column": {"type": "string"},
+            "rho": {"type": "number", "minimum": -1, "maximum": 1}
+          }
+        },
+        "faker": {
+          "type": "object",
+          "description": "For type=faker: a Faker provider call.",
+          "additionalProperties": false,
+          "properties": {
+            "provider": {"type": "string", "description": "e.g. 'name', 'email', 'city', 'company'."},
+            "locale": {"type": "string"},
+            "unique": {"type": "boolean"}
+          }
+        },
+        "llm": {
+          "type": "object",
+          "description": "For type=text: LLM-authored free text.",
+          "additionalProperties": false,
+          "properties": {
+            "prompt": {"type": "string", "description": "Template prompt; may reference other columns as {col}."},
+            "max_tokens": {"type": "integer"},
+            "cardinality": {
+              "type": "integer",
+              "description": "If set, generate only this many distinct texts and sample with replacement (cost control)."
+            },
+            "conditioned_on": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Columns whose values are interpolated into the prompt."
+            }
+          }
+        }
+      }
+    },
+    "distribution": {
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": true,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["normal", "lognormal", "uniform", "uniform_int", "exponential", "poisson", "beta", "gamma", "bernoulli", "categorical", "datetime_uniform", "datetime_seasonal", "zipf", "constant", "pareto"]
+        },
+        "mean": {"type": "number"},
+        "std": {"type": "number"},
+        "min": {"type": "number"},
+        "max": {"type": "number"},
+        "lam": {"type": "number", "description": "rate/lambda for exponential/poisson"},
+        "alpha": {"type": "number"},
+        "beta": {"type": "number"},
+        "shape": {"type": "number"},
+        "scale": {"type": "number"},
+        "p": {"type": "number", "description": "probability for bernoulli"},
+        "s": {"type": "number", "description": "exponent for zipf"},
+        "value": {"description": "for kind=constant"},
+        "values": {
+          "type": "object",
+          "description": "for kind=categorical: {category: weight}. Weights are normalized.",
+          "additionalProperties": {"type": "number"}
+        },
+        "start": {"type": "string", "description": "ISO date for datetime kinds"},
+        "end": {"type": "string", "description": "ISO date for datetime kinds"},
+        "seasonality": {
+          "type": "object",
+          "description": "for datetime_seasonal: monthly multipliers and weekday multipliers",
+          "properties": {
+            "monthly": {"type": "array", "items": {"type": "number"}, "minItems": 12, "maxItems": 12},
+            "weekday": {"type": "array", "items": {"type": "number"}, "minItems": 7, "maxItems": 7}
+          }
+        },
+        "round": {"type": "integer", "description": "decimal places to round to"}
+      }
+    },
+    "constraint": {
+      "type": "object",
+      "description": "A hard constraint. `expr` is a boolean pandas expression that must hold for every row; rows violating it are repaired or resampled.",
+      "required": ["expr"],
+      "additionalProperties": false,
+      "properties": {
+        "expr": {"type": "string"},
+        "repair": {
+          "type": "string",
+          "enum": ["clip", "resample", "drop", "error"],
+          "default": "resample",
+          "description": "How to handle violations."
+        },
+        "description": {"type": "string"}
+      }
+    }
+  }
+}

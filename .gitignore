@@ -1,0 +1,32 @@
+# Generated run artifacts
+outputs/
+*.preview_*.html
+.preview_*.html
+
+# Engine caches & generated data
+**/.cache/
+*.csv
+generation_report.json
+report.html
+recipe.html
+spec.html
+
+# Keep the sample test recipe and template (explicitly un-ignored below)
+!plugins/datagen/engine/tests/*.yaml
+!plugins/datagen/skills/**/*.yaml
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp

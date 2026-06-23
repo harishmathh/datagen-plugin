@@ -1,0 +1,132 @@
+meta:
+  name: brightbasket_segmentation
+  description: Smoke-test recipe — 4 linked tables for retail customer segmentation.
+  seed: 42
+  version: "0.1.0"
+
+entities:
+  customers:
+    key: customer_id
+    count: 2000
+    id_format: "CUST{n:07d}"
+
+datasets:
+  # ---- 1. customers : one row per customer (demographics + assigned segment)
+  - name: customers
+    grain: one row per customer
+    primary_entity: customers
+    columns:
+      age:
+        type: integer
+        description: Customer age in years.
+        distribution: {kind: normal, mean: 41, std: 14, min: 18, max: 85, round: 0}
+      gender:
+        type: categorical
+        distribution:
+          kind: categorical
+          values: {Female: 0.52, Male: 0.46, Other: 0.02}
+      city_tier:
+        type: categorical
+        distribution:
+          kind: categorical
+          values: {Tier 1: 0.6, Tier 2: 0.4}
+      segment:
+        type: categorical
+        description: Assigned marketing segment (the target of the exercise).
+        distribution:
+          kind: categorical
+          values:
+            Premium Families: 0.18
+            Value Seekers: 0.34
+            Young Singles: 0.22
+            Older Households: 0.16
+            Occasional Shoppers: 0.10
+      tenure_months:
+        type: integer
+        description: Months since first purchase.
+        distribution: {kind: exponential, lam: 0.04, min: 1, max: 120, round: 0}
+    constraints:
+      - {expr: "age >= 18", repair: clip}
+      - {expr: "tenure_months >= 1", repair: clip}
+
+  # ---- 2. spendings : one row per customer (annual spend, conditioned on segment)
+  - name: spendings
+    grain: one row per customer
+    primary_entity: customers
+    inherit:
+      - {from: customers, columns: [segment], keep: false}
+    columns:
+      annual_spend:
+        type: numeric
+        unit: USD
+        description: Total annual spend; higher for premium segments.
+        # base distribution for unmatched rows
+        distribution: {kind: lognormal, mean: 6.2, std: 0.5, min: 50, round: 2}
+        conditional:
+          - when: "segment == 'Premium Families'"
+            distribution: {kind: normal, mean: 4200, std: 900, min: 800, round: 2}
+          - when: "segment == 'Older Households'"
+            distribution: {kind: normal, mean: 2600, std: 700, min: 400, round: 2}
+          - when: "segment == 'Occasional Shoppers'"
+            distribution: {kind: normal, mean: 600, std: 250, min: 50, round: 2}
+        depends_on: []
+        outliers: {fraction: 0.01, kind: high, magnitude: 5}
+      premium_share:
+        type: numeric
+        description: Fraction of spend on the premium range (wine/meat/gold).
+        distribution: {kind: beta, alpha: 2, beta: 6, min: 0, max: 1, round: 3}
+      orders_per_year:
+        type: integer
+        description: Number of orders in the year; correlated with spend.
+        distribution: {kind: poisson, lam: 24, min: 1}
+        correlate_with: {column: annual_spend, rho: 0.6}
+    foreign_keys: []
+    # NOTE: segment lives in customers; we reference it via a join column below.
+    constraints:
+      - {expr: "annual_spend > 0", repair: clip}
+      - {expr: "premium_share <= 1", repair: clip}
+
+  # ---- 3. engagement : one row per customer (channel + digital behavior)
+  - name: engagement
+    grain: one row per customer
+    primary_entity: customers
+    columns:
+      primary_channel:
+        type: categorical
+        description: Channel generating most of this customer's revenue.
+        distribution:
+          kind: categorical
+          values: {In-Store: 0.78, Website: 0.15, Catalog: 0.07}
+      email_open_rate:
+        type: numeric
+        distribution: {kind: beta, alpha: 2, beta: 5, min: 0, max: 1, round: 3}
+      app_installed:
+        type: boolean
+        distribution: {kind: bernoulli, p: 0.41}
+      days_since_last_visit:
+        type: integer
+        distribution: {kind: exponential, lam: 0.05, min: 0, max: 365, round: 0}
+
+  # ---- 4. household : one row per customer (household composition)
+  - name: household
+    grain: one row per customer
+    primary_entity: customers
+    columns:
+      household_size:
+        type: integer
+        distribution: {kind: poisson, lam: 2.6, min: 1, max: 9}
+      has_children:
+        type: boolean
+        distribution: {kind: bernoulli, p: 0.38}
+      num_children:
+        type: derived
+        description: Children count, zero unless the household has children.
+        depends_on: [has_children, household_size]
+        expr: "where(has_children, clip(household_size - 1, 0, 5), 0)"
+      income_bracket:
+        type: categorical
+        distribution:
+          kind: categorical
+          values: {Low: 0.3, Middle: 0.5, High: 0.2}
+    constraints:
+      - {expr: "num_children < household_size", repair: clip}

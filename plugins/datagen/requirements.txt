@@ -1,0 +1,9 @@
+# Core engine — required
+numpy>=1.24
+pandas>=2.0
+PyYAML>=6.0
+
+# Optional but recommended
+jsonschema>=4.0      # strict recipe validation (engine degrades gracefully if absent)
+Faker>=24.0          # realistic structured text (names/emails/cities); has a built-in fallback
+anthropic>=0.40      # LLM-authored free-text columns (only needed when a recipe uses type: text)

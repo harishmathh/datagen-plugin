@@ -1,0 +1,30 @@
+{
+  "name": "datagen-marketplace",
+  "owner": {
+    "name": "HarishMaths1972",
+    "url": "https://github.com/HarishMaths1972"
+  },
+  "metadata": {
+    "description": "Marketplace hosting the DataGen plugin for research-grounded synthetic dataset generation.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "datagen",
+      "source": "./plugins/datagen",
+      "description": "Generate synthetic yet realistic datasets from a business context. Researches the domain on the web to ground numbers in reality, produces a reviewable spec, compiles a YAML generation recipe, and builds multi-table datasets with referential integrity, statistical distributions, constraints, and LLM-authored text columns.",
+      "version": "0.1.0",
+      "author": {
+        "name": "HarishMaths1972"
+      },
+      "keywords": [
+        "synthetic-data",
+        "dataset-generation",
+        "data-research",
+        "faker",
+        "segmentation",
+        "test-data"
+      ]
+    }
+  ]
+}
