@@ -1,11 +1,10 @@
 # Domain Research Report, {{BUSINESS_NAME}}
 
-> **Status:** DRAFT for review · **Generated:** {{DATE}} · **Version:** 1.0
-> This report grounds the request in real-world data. Every non-obvious number
-> carries a citation. Read the assumptions, correct anything that looks off,
-> then confirm. If this is part of a dataset run, confirming lets recipe
-> compilation begin; if you only wanted the research, this report is the
-> deliverable.
+> **Status:** for review · **Generated:** {{DATE}} · **Confidence:** {{CONFIDENCE}}
+> This is a text mirror of the research. The visual version is
+> `research_report.html`, built from `research.json`. Every non-obvious number
+> carries a citation. This is research only: it does not propose datasets and it
+> does not design any schema.
 
 ---
 
@@ -15,7 +14,6 @@
 |---|---|
 | Business context | {{ONE_LINE_CONTEXT}} |
 | Objective | {{OBJECTIVE}} |
-| Requested datasets | {{REQUESTED_DATASETS}} |
 | Additional comments | {{COMMENTS}} |
 
 ## 2. Business profile (researched)
@@ -38,13 +36,12 @@ companies. Mark each as **Plausible**, **Adjust to X**, or **Unverifiable**.
 
 ## 3. Customer base (researched)
 
-Who the customers actually are for this segment/industry/geography. This feeds
-the demographic and behavioral distributions in the recipe.
+Who the customers actually are for this segment, industry, and geography.
 
 - **Demographics:** age bands, gender split, household composition, income
   brackets, geographic distribution (with cited benchmarks).
 - **Behavioral patterns:** purchase frequency, basket size, channel preference,
-  digital engagement, loyalty/churn dynamics.
+  digital engagement, loyalty and churn dynamics.
 - **Known segments / archetypes** in this industry (from research) and how they
   typically differ on spend, frequency, and category mix.
 
@@ -54,8 +51,7 @@ the demographic and behavioral distributions in the recipe.
 
 ## 4. Domain metrics & distributions
 
-The statistical shape of each key quantity, grounded in research, that the
-recipe will encode.
+The statistical shape of each key quantity, grounded in research.
 
 | Metric | Distribution shape | Params (grounded) | Rationale / source |
 |---|---|---|---|
@@ -65,8 +61,7 @@ recipe will encode.
 
 ## 5. Relationships & constraints
 
-Real-world dependencies the data must respect, so the synthetic data is
-internally consistent (not just marginally realistic).
+Real-world dependencies that keep the picture internally consistent.
 
 - **Correlations:** e.g. spend rises with frequency (rho about 0.5 to 0.7);
   premium share rises with income; engagement falls with age.
@@ -77,28 +72,14 @@ internally consistent (not just marginally realistic).
 - **Outliers / edge cases:** whales, dormant accounts, returns-heavy customers,
   each with a realistic prevalence.
 
-## 6. Proposed dataset blueprint
-
-One subsection per requested dataset. This is the bridge to the recipe.
-
-### {{DATASET_NAME}}
-- **Grain:** one row per …
-- **Keyed on / links to:** …
-- **Suggested size:** … (rationale: sampled from the {{POP}} population)
-- **Columns:** name · type · meaning · grounded distribution · relationships
-
-| Column | Type | Meaning | Distribution | Depends on |
-|---|---|---|---|---|
-| … | … | … | … | … |
-
-## 7. Open questions for the user
+## 6. Open questions for the user
 
 Anything ambiguous or where research disagreed with the prompt and a human
-decision is needed before generating.
+decision is needed.
 
 - [ ] …
 
-## 8. Sources
+## 7. Sources
 
 A numbered list of every source consulted, with what was drawn from each.
 
@@ -107,5 +88,4 @@ A numbered list of every source consulted, with what was drawn from each.
 
 ---
 *Confidence note:* where research was thin or sources conflicted, this is stated
-inline rather than papered over. Synthetic data inherits the quality of these
-assumptions.
+inline rather than papered over.

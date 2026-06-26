@@ -1,0 +1,49 @@
+{
+  "business": "BrightBasket Retail, a mid-size grocery chain in tier-2 Indian cities",
+  "objective": "Understand the customer base well enough to segment it into 4 to 6 groups.",
+  "comments": "Focus on spend and digital engagement.",
+  "generated": "2026-06-26",
+  "confidence": "medium",
+  "summary": "Tier-2 Indian grocery chains serve a mix of value-driven families and a growing digitally engaged younger cohort. Spend is heavily right-skewed and store traffic peaks on weekends and festival months.",
+  "business_profile": {
+    "attributes": [
+      {"name": "Annual revenue", "stated": "$120M", "real_world_range": "$80M to $200M", "verdict": "plausible", "source": "IBEF retail", "url": "https://example.com/ibef"},
+      {"name": "Store count", "stated": "60", "real_world_range": "40 to 90", "verdict": "plausible", "source": "Industry report", "url": "https://example.com/stores"},
+      {"name": "Revenue per store", "stated": "not stated", "real_world_range": "$1.3M to $2.5M", "verdict": "adjust", "adjust_to": "$2.0M", "source": "derived", "url": ""},
+      {"name": "CAGR", "stated": "18%", "real_world_range": "8% to 14%", "verdict": "adjust", "adjust_to": "12%", "source": "Statista", "url": "https://example.com/cagr"}
+    ],
+    "sanity_checks": ["Revenue / stores = $2.0M per store, in line with the $1.3M to $2.5M benchmark."]
+  },
+  "customer_base": {
+    "demographics": [
+      {"dimension": "Age", "breakdown": [{"label": "18-29", "share": 28}, {"label": "30-44", "share": 39}, {"label": "45-59", "share": 22}, {"label": "60+", "share": 11}], "source": "Census", "url": "https://example.com/age"},
+      {"dimension": "Income band", "breakdown": [{"label": "Low", "share": 30}, {"label": "Middle", "share": 50}, {"label": "Upper-middle", "share": 15}, {"label": "High", "share": 5}], "source": "NSSO", "url": ""}
+    ],
+    "behavior": [
+      {"metric": "Visit frequency", "value": "~5 to 8 visits/month", "source": "Nielsen", "url": "https://example.com/freq"},
+      {"metric": "Average basket", "value": "$8 to $15", "source": "Nielsen", "url": ""}
+    ],
+    "segments": [
+      {"name": "Value Families", "share": 42, "traits": "Large baskets, weekend visits, price sensitive", "source": "Bain", "url": ""},
+      {"name": "Digital Youngsters", "share": 23, "traits": "High app usage, small frequent orders", "source": "Bain", "url": ""},
+      {"name": "Premium Loyalists", "share": 18, "traits": "High spend, low price sensitivity", "source": "Bain", "url": ""},
+      {"name": "Occasional Shoppers", "share": 17, "traits": "Low frequency, top-up trips", "source": "Bain", "url": ""}
+    ]
+  },
+  "metrics": [
+    {"name": "Annual spend", "shape": "lognormal", "params": "median ~$420, p95 ~$2100", "rationale": "Grocery spend is heavy-tailed", "source": "Nielsen", "url": ""},
+    {"name": "Order frequency", "shape": "poisson", "params": "lambda ~24/yr", "rationale": "Count of visits", "source": "", "url": ""},
+    {"name": "Age", "shape": "normal", "params": "mean 38, std 13", "rationale": "Adult shoppers", "source": "", "url": ""}
+  ],
+  "relationships": {
+    "correlations": [{"between": "spend and frequency", "strength": "rho ~0.6, positive", "source": "Nielsen"}],
+    "conditionals": ["Families have larger baskets and more weekend visits.", "Young singles have higher app usage and lower spend."],
+    "constraints": ["spend >= 0", "tenure_months <= age*12"],
+    "outliers": ["Whales: ~1% of customers, 5x median spend.", "Dormant accounts: ~8%, near-zero recent activity."]
+  },
+  "open_questions": ["Is loyalty-program membership in scope as a variable?"],
+  "sources": [
+    {"title": "IBEF Indian Retail Report 2025", "url": "https://example.com/ibef", "used_for": "Revenue and growth benchmarks"},
+    {"title": "Nielsen Shopper Trends", "url": "https://example.com/freq", "used_for": "Frequency and basket size"}
+  ]
+}

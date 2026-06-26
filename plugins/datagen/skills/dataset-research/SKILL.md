@@ -1,143 +1,155 @@
 ---
 name: Dataset-Research
-description: A standalone domain-research skill. Given a business context, an objective, and additional comments, it fans out web research to validate the business's numbers (revenue, store count, CAGR, ROI, channel mix), profile its real customer base and segments, and derive grounded statistical distributions, relationships, and constraints. It produces a visual HTML research report for you to read, backed by a spec file stored on disk. Use this when you just want the research: "research the domain for this business", "validate these numbers", "what does the real customer base look like for X". It does research only and stops there. Dataset-Generator calls this skill internally to get its grounded inputs, but on its own this skill never compiles a recipe or generates data.
+description: A standalone domain-research skill. Given a business context and an objective (plus optional comments), it fans out parallel web research to validate the business's numbers (revenue, store count, CAGR, ROI, channel mix), profile its real customer base and segments, and derive grounded statistical shapes, relationships, and constraints. It writes one compact research.json and renders a beautiful, illustrated HTML report for you to read. Use this whenever you just want the research: "research the domain for this business", "validate these numbers", "what does the real customer base look like for X", "profile customers so they can be segmented". It does research only and then stops. It never proposes datasets, writes a recipe, or generates data. Dataset-Generator calls this skill to get its grounded inputs.
 ---
 
 # Dataset-Research
 
 This skill researches the real-world domain behind a business and writes up what
-it found. That is the whole job. It does not build a recipe and it does not
-generate any data. If you want data at the end, use Dataset-Generator, which
-calls this skill first and then takes over.
+it found, as a visual report. That is the whole job. It does **not** propose
+datasets, design any schema, build a recipe, or generate data. If the user wants
+data, that is Dataset-Generator, which calls this skill first and then takes
+over.
 
-The company you describe can be made up, but it stands for a real *kind* of
-business. So before any number gets used anywhere, this skill checks it against
-comparable real companies and published benchmarks.
+The company described can be made up, but it stands for a real *kind* of
+business. So before any number is used, this skill checks it against comparable
+real companies and published benchmarks.
 
-## Required inputs (do not skip this)
+## Required inputs (hard gate)
 
-Three inputs are mandatory:
+Two inputs are mandatory, one is optional:
 
-1. **Business context** the company and what it does.
-2. **Objective** what the research is for (for example "understand the customer
-   base so it can be segmented into 4 to 6 groups").
-3. **Additional comments** anything else that matters: geography, which areas to
-   focus on, size of the operation, special concerns.
+1. **Business context** (required) the company and what it does.
+2. **Objective** (required) what the research is for, for example "understand
+   the customer base well enough to segment it into 4 to 6 groups".
+3. **Additional comments** (optional) geography, focus areas, size of the
+   operation, special concerns.
 
-If any of these three is missing or vague, **stop and ask the user for it.** Do
-not start researching, do not guess, do not fill in a plausible default. List
-exactly what is missing in plain language and wait. Only once all three are in
-hand do you do anything else. This is a hard gate, not a suggestion.
+If the business context or the objective is missing or vague, **stop and ask the
+user for it.** Do not start researching, do not guess, do not fill in a
+plausible default. Say plainly what is missing and wait. Comments are optional;
+if there are none, proceed. This is a hard gate.
+
+Note what this skill does *not* take: it never asks "which datasets" or "what
+sizes". Those are generation questions and have no place here. The objective is
+about understanding, not output tables.
 
 ## Where the output goes
 
-Make one run directory: `outputs/<slug>/`, where `<slug>` is
-`<business-name>-<YYYYMMDD>` in kebab-case with no spaces. Everything for this
-run lives there:
+Make one run directory `outputs/<slug>/`, where `<slug>` is
+`<business-name>-<YYYYMMDD>` in kebab-case, no spaces. Everything for this run
+lives there:
 
-- `outputs/<slug>/spec.md` the spec, stored internally. This is the structured
-  record of the research. It is filled from `spec_template.md`.
-- `outputs/<slug>/research_report.html` the visual report you actually show the
-  user. Rendered from the spec.
-- `outputs/<slug>/research_notes/` raw agent findings, kept for audit (optional).
+- `outputs/<slug>/research.json` the structured research artifact. This is the
+  machine-readable backing file, validated against
+  `${CLAUDE_PLUGIN_ROOT}/engine/research_schema.json`. It is what
+  Dataset-Generator picks up when this skill runs as its first step.
+- `outputs/<slug>/research_report.html` the visual, illustrated report you show
+  the user. Built from `research.json`.
+- `outputs/<slug>/spec.md` an optional human-readable mirror of the research,
+  filled from `spec_template.md`. Nice to have for diffing; not required for the
+  HTML.
 
-The user reads the HTML. The `spec.md` is the machine-readable backing file, and
-it is what Dataset-Generator picks up when this skill runs as its first step.
+The user reads the HTML. Keep the JSON small and structured: the model emits
+data, the Python builder does the visual layout. That is the token-efficiency
+win, do not hand-author HTML.
 
 ## How to run it
 
 ### 1. Read the request back
 
-Pull out the business attributes, the objective, and anything in the comments.
-Restate it in three or four lines so the user can catch a misreading early.
-Pick out the specific claimed numbers that need checking: revenue, store or
-branch count, customer base size, CAGR, ROI, channel or segment mix, geography.
+Restate the business context and the objective in three or four lines so the
+user can catch a misreading early. List the specific claimed numbers worth
+checking: revenue, store or branch count, customer base size, CAGR, ROI, channel
+or segment mix, geography.
 
-### 2. Fan out the web research
+### 2. Fan out the web research (parallel agents)
 
-Spawn independent research agents in parallel (one message, several Agent
-calls). Each one owns a single aspect, uses WebSearch and WebFetch, and comes
-back with cited findings. A split that works well, adapt it to the domain:
+Spawn the prebuilt research agents in parallel, in a single message with several
+Agent calls, using the `agentType` shown. Each owns one aspect, uses WebSearch
+and WebFetch, and returns a compact cited JSON fragment. Hand each one the
+business context, the objective, and any comments, in two or three lines. Do not
+paste long instructions; the agent definitions already hold them.
 
-- **Agent A, business benchmarks.** Check revenue, store count, revenue per
-  store, CAGR, growth pattern, and marketing ROI against comparable real
-  companies and industry reports. Return, for each claimed number: a realistic
-  range, a verdict (plausible / adjust to X / unverifiable), and sources.
-- **Agent B, customer demographics.** Who actually shops at this kind of
-  business in this geography? Age bands, gender split, household make-up, income
-  brackets, urban or rural or tier split, each with a cited benchmark.
-- **Agent C, customer behavior and segments.** Purchase frequency, basket size,
-  channel preference, digital engagement, loyalty and churn, and the segment
-  archetypes that are known in this industry, with rough shares and traits.
-- **Agent D, metric distributions and relationships.** The statistical shape of
-  the key quantities (spend tends to be right-skewed or log-normal, frequency is
-  roughly Poisson, and so on), plausible parameters, and the real dependencies
-  (spend with frequency, income with premium share, age with digital use).
-- **Agent E, qualitative signal.** Reddit, forums, case studies, and the pages
-  of similar real companies, for the texture the raw numbers miss.
+| agentType | Owns | Returns |
+|---|---|---|
+| `business-benchmarks` | revenue, store count, revenue per unit, CAGR, ROI | `attributes`, `sanity_checks` |
+| `customer-demographics` | age, gender, income, household, geography splits | `demographics` |
+| `customer-behavior` | frequency, basket, channel, loyalty, churn, segments | `behavior`, `segments` |
+| `metric-distributions` | distribution shapes, params, relationships | `metrics`, `relationships` |
+| `qualitative-signal` | forums, reviews, case studies, real-company texture | `summary`, extra `conditionals`, `outliers`, `open_questions` |
 
-Hand every agent the objective too, so the research stays pointed at what the
-user actually wants. For a segmentation objective, for instance, push harder on
-segment archetypes and the variables that separate them.
-
-Tell each agent to return a compact, cited result: claim, then value or range,
-then source URL. Prefer primary sources and recent data (it is 2026).
+For a segmentation objective, lean on `customer-behavior` and
+`metric-distributions` for the segment archetypes and the variables that
+separate them.
 
 > If the `deep-research` skill is available and the user wants maximum rigor, you
-> can hand the web phase to it instead. Otherwise the parallel Agent fan-out
-> above is the default.
+> can hand the web phase to it instead. Otherwise the agent fan-out above is the
+> default and the cheaper path.
 
-### 3. Reconcile and ground
+### 3. Reconcile and assemble research.json
 
-Merge what the agents found. For each claimed number, settle on one grounded
-value: keep it if it holds up, adjust it (and say why) if research disagrees, or
-flag it if it cannot be verified. Run the obvious cross-checks (revenue divided
-by stores, revenue divided by customers, and so on). Where sources disagree, say
-so plainly instead of smoothing it over.
+Merge the fragments into one `research.json` that validates against
+`engine/research_schema.json`. For each claimed number, settle on one grounded
+value: keep it (plausible), adjust it and say why (adjust), or flag it
+(unverifiable). Run the cross-checks (revenue / stores, revenue / customers).
+Where sources disagree, say so in the field rather than smoothing it over. Make
+sure demographic and segment shares are plain numbers that add up to about 100,
+the charts depend on it. Set `generated` to today's date and `confidence` to
+high, medium, or low based on how much was verifiable.
 
-### 4. Write the spec (internal)
-
-Fill `spec_template.md` (in this skill's directory) into
-`outputs/<slug>/spec.md`. Complete every section. Every non-obvious number
-carries a citation. Section 6, the dataset blueprint, is written so that *if*
-someone later compiles a recipe from it they have what they need (grain, keys,
-size, columns with grounded distributions and relationships); it is part of the
-record either way. Section 7 lists open questions for the user.
-
-### 5. Render the report and show it
-
-Build the HTML report and present that:
+Validate it:
 
 ```bash
-python "${CLAUDE_PLUGIN_ROOT}/engine/render.py" spec \
-  "outputs/<slug>/spec.md" "outputs/<slug>/research_report.html"
+python "${CLAUDE_PLUGIN_ROOT}/engine/validate_research.py" \
+  "outputs/<slug>/research.json"
 ```
 
-Publish `outputs/<slug>/research_report.html` as an **Artifact** so the user can
-read it visually, with the tables, verdict pills, and sources laid out. In chat,
-give a tight summary: the three or four most important grounded numbers, anything
-you changed from what the prompt claimed, and the open questions.
+This checks the JSON against `research_schema.json`. If `jsonschema` is not
+installed it falls back to a light key check, so it always gives a signal. The
+renderer is also forgiving of missing optional fields.
 
-### 6. Stop
+### 4. Render the report and show it
 
-That is the end of a standalone run. Do not start building a recipe and do not
-generate data. If the user wants the actual dataset, that is Dataset-Generator's
-job, and it will call this skill for the research part.
+```bash
+python "${CLAUDE_PLUGIN_ROOT}/engine/render.py" research \
+  "outputs/<slug>/research.json" "outputs/<slug>/research_report.html"
+```
 
-When this skill is being run *by* Dataset-Generator, it still stops here, but it
-hands the confirmed `spec.md` path back so generation can take over.
+Publish `outputs/<slug>/research_report.html` as an **Artifact** so the user
+reads it visually: hero header, KPI cards, verdict pills, donut and bar charts
+for demographics and segments, distribution sparklines, and a sources panel. In
+chat, give a tight summary: the three or four most important grounded numbers,
+anything you changed from what the prompt claimed, and the open questions.
+
+Optionally also fill `spec_template.md` into `outputs/<slug>/spec.md` for a
+diffable text record. Skip it if the user only wants the visual.
+
+### 5. Stop
+
+That is the end of a standalone run. Do not propose datasets, do not build a
+recipe, do not generate data. If the user wants the actual dataset, that is
+Dataset-Generator, which will call this skill for the research part and then take
+over.
+
+When this skill is run *by* Dataset-Generator, it still stops here, but it hands
+the `research.json` path back so generation can take over.
 
 ## Quality bar
 
 - No bare domain number. "Roughly $X, the industry median per [source]" beats a
   confident figure with nothing behind it.
-- Distributions are shapes with parameters, not adjectives. A downstream recipe
-  needs `mean`, `std`, `lambda`, not the word "skewed".
-- Capture relationships and constraints now. They are painful to add later.
-- Be honest about thin spots. Anything built on this research inherits these
-  assumptions, so a weak assumption flagged is worth more than a guess hidden.
+- Distributions are shapes with parameters, not adjectives. Write `lognormal,
+  median ~$420, p95 ~$2100`, not "skewed".
+- Capture relationships and constraints now. They are painful to recover later.
+- Be honest about thin spots. A weak assumption flagged is worth more than a
+  guess hidden, because anything built on this research inherits it.
 
 ## Reference files
 
-- `spec_template.md` the exact structure to fill.
-- `${CLAUDE_PLUGIN_ROOT}/engine/render.py` the `spec` mode renders the HTML report.
+- `${CLAUDE_PLUGIN_ROOT}/engine/research_schema.json` the shape of research.json.
+- `${CLAUDE_PLUGIN_ROOT}/engine/validate_research.py` validates research.json.
+- `${CLAUDE_PLUGIN_ROOT}/engine/render.py` `research` mode renders the report.
+- `${CLAUDE_PLUGIN_ROOT}/engine/build_research_report.py` the HTML builder.
+- `spec_template.md` optional human-readable text mirror.
+- `${CLAUDE_PLUGIN_ROOT}/agents/` the five research agents.

@@ -9,7 +9,7 @@
 meta:
   name: my_dataset            # used for filenames / report titles
   description: One-line description of what this recipe produces.
-  spec_ref: ../spec.md        # optional: the research spec this came from
+  research_ref: ./research.json  # optional: the research artifact this came from
   seed: 42                    # master seed -> every table/column derives its own
   version: "1.0"
 

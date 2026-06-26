@@ -1,88 +1,140 @@
-# DataGen, a research-grounded synthetic dataset generator
+# DataGen
 
-A [Claude Code](https://claude.com/claude-code) plugin that turns a plain-English
-**business context plus an objective** into **synthetic but realistic datasets**.
+DataGen is a [Claude Code](https://claude.com/claude-code) plugin. You tell it
+about a business in plain English. It researches that kind of business on the
+web, shows you a good looking report, and then, if you want, builds a fake but
+realistic dataset for it.
 
-It does not just spit out random numbers. It first researches the real-world
-domain on the web so every figure is grounded, gets you to sign off on what it
-found, compiles a readable YAML "recipe," lets you review that too, and only
-then builds the data with a deterministic Python engine: distributions,
-correlations, conditional logic, hard constraints, multi-table referential
-integrity, and LLM-authored text.
+It does not just spit out random numbers. It looks up real companies first, so
+the numbers it uses are grounded in reality. You get to check its work before
+anything is generated.
 
-```mermaid
-flowchart LR
-    A[Business context<br/>Objective<br/>Comments] --> B{All three<br/>provided?}
-    B -- no --> A
-    B -- yes --> C[Research the domain<br/>on the web]
-    C --> D[[Research report<br/>HTML + spec.md]]
-    D -- you confirm --> E[Compile recipe<br/>recipe.yaml]
-    E --> F[[Recipe review<br/>HTML]]
-    F -- you confirm --> G[Generate with<br/>seeded engine]
-    G --> H[[CSV files +<br/>validation report]]
-    style B fill:#3a2c00,stroke:#fbbf24,color:#fff
-    style D fill:#11233a,stroke:#6ea8fe,color:#fff
-    style F fill:#11233a,stroke:#6ea8fe,color:#fff
-    style H fill:#0f2a18,stroke:#4ade80,color:#fff
-```
+## What is in the box
 
-## The two skills, and how they relate
-
-There are two skills, and the distinction matters.
+There are two skills. They do different jobs.
 
 ```mermaid
 flowchart TB
-    subgraph standalone [Run Dataset-Research on its own]
-        R1[Business context + objective + comments] --> R2[Web research]
-        R2 --> R3[[HTML report you read<br/>+ spec.md stored internally]]
-        R3 --> R4([Stop. Research only.])
+    subgraph one [Dataset-Research, on its own]
+        A1[You describe a business<br/>and what you want to learn] --> A2[It researches the web]
+        A2 --> A3[[A nice HTML report<br/>you can read]]
+        A3 --> A4([It stops here])
     end
-    subgraph full [Run Dataset-Generator]
-        G1[Business context + objective + comments] --> G2[calls Dataset-Research]
-        G2 --> G3[grounded spec]
-        G3 --> G4[recipe.yaml]
-        G4 --> G5[generate data]
+    subgraph two [Dataset-Generator]
+        B1[You describe a business<br/>and what data you want] --> B2[It runs the research first]
+        B2 --> B3[It writes a recipe]
+        B3 --> B4[[CSV files of data]]
     end
-    G2 -. uses .-> R2
+    B2 -. uses .-> A2
+    style A3 fill:#e6f7f1,stroke:#22c1a4,color:#111
+    style B4 fill:#eaf1fe,stroke:#5b8def,color:#111
 ```
 
-| Skill | Invoked on its own it... | Used by the other? |
+**Dataset-Research** is for when you only want to understand a business. It does
+the research and hands you a report. Then it stops. It never builds a dataset.
+
+**Dataset-Generator** is for when you want the actual data. It runs the research
+for you, turns it into a recipe, and builds the files.
+
+| Skill | What it gives you | Builds data? |
 |---|---|---|
-| **Dataset-Research** | Researches the domain and hands you a visual HTML report (backed by an internal `spec.md`). Then it **stops**. It never writes a recipe or generates data. | No. It is fully standalone. |
-| **Dataset-Generator** | Runs the whole pipeline: research, recipe, generate. | Yes. It **calls Dataset-Research** to get its grounded inputs, then takes over. |
+| Dataset-Research | A visual report about the business, backed by a `research.json` file | No |
+| Dataset-Generator | The research plus the actual CSV files | Yes |
 
-So: invoke **Dataset-Research** when you only want the research. Invoke
-**Dataset-Generator** when you want the actual dataset, and it will pull in the
-research for you.
+## What you have to give it
 
-## Both skills require three inputs
+Both skills need two things before they do anything. If you leave one out, they
+ask you for it and wait.
 
-Neither skill does anything until it has all three of these. If one is missing,
-it asks you and waits.
-
-| Input | What it is |
+| You give it | Example |
 |---|---|
-| **Business context** | The company and what it does. |
-| **Objective** | What the research or dataset is for. |
-| **Additional comments** | Geography, which datasets, sizes, special needs. |
+| The business | "A mid size grocery chain in tier 2 Indian cities" |
+| The objective | "Understand the customers well enough to split them into 4 to 6 groups" |
+| Comments (optional) | "Focus on spend and app usage" |
 
-## Two review gates
+For Dataset-Generator, the comments also say which tables you want and how big.
+
+## How Dataset-Research works
+
+The interesting part is that it does not research everything in one go. It sends
+out five small workers at the same time, each looking at one thing. That is
+faster and keeps the cost down.
 
 ```mermaid
 flowchart LR
-    R[Research] --> Q1{Spec OK?}
-    Q1 -- amend --> R
-    Q1 -- yes --> C[Recipe]
-    C --> Q2{Recipe OK?}
-    Q2 -- amend --> C
-    Q2 -- yes --> G[Generate]
-    style Q1 fill:#3a2c00,stroke:#fbbf24,color:#fff
-    style Q2 fill:#3a2c00,stroke:#fbbf24,color:#fff
+    Q[Your request] --> R{Have business<br/>and objective?}
+    R -- no --> Q
+    R -- yes --> F[Send 5 research workers<br/>at the same time]
+    F --> W1[Numbers check]
+    F --> W2[Who the customers are]
+    F --> W3[How they behave]
+    F --> W4[Stats and patterns]
+    F --> W5[Real world texture]
+    W1 --> M[Combine into one<br/>research.json]
+    W2 --> M
+    W3 --> M
+    W4 --> M
+    W5 --> M
+    M --> H[[Build the HTML report]]
+    style H fill:#e6f7f1,stroke:#22c1a4,color:#111
+    style R fill:#fff4e0,stroke:#b5760a,color:#111
 ```
 
-You confirm after the **spec** (is the research right?) and after the **recipe**
-(is the generation contract right?). Generation only runs once you pass the
-second gate.
+The five workers each have one job:
+
+| Worker | Looks at |
+|---|---|
+| Numbers check | Is the revenue, store count, growth, and ROI realistic? |
+| Who the customers are | Age, gender, income, location |
+| How they behave | How often they buy, basket size, channel, loyalty, segments |
+| Stats and patterns | The shape of the numbers and how they relate |
+| Real world texture | Forums, reviews, and case studies for the human detail |
+
+Everything they find is merged into one small `research.json` file. A Python
+script then turns that file into the report. The model does not hand write the
+HTML, which is what keeps it cheap and consistent.
+
+## What the report looks like
+
+The report is a single HTML file with no external files, so it opens anywhere.
+It has a header, summary cards, colored donut and bar charts for the customer
+mix, little shape pictures for each metric, and a list of sources.
+
+```mermaid
+flowchart TB
+    subgraph report [research_report.html]
+        H1[Header with the business and goal]
+        H2[Cards: figures checked, segments, sources]
+        H3[Donut and bar charts<br/>of the customer mix]
+        H4[Table of fact checked numbers]
+        H5[List of sources]
+    end
+    style report fill:#f6f8fc,stroke:#5b8def,color:#111
+```
+
+## How Dataset-Generator works
+
+It runs the research first, lets you check it, then writes a recipe and builds
+the data. You get to say yes or fix things at two points.
+
+```mermaid
+flowchart LR
+    S1[Research] --> G1{Looks right?}
+    G1 -- fix --> S1
+    G1 -- yes --> S2[Recipe]
+    S2 --> G2{Looks right?}
+    G2 -- fix --> S2
+    G2 -- yes --> S3[Build the data]
+    S3 --> O[[CSV files plus<br/>a check report]]
+    style G1 fill:#fff4e0,stroke:#b5760a,color:#111
+    style G2 fill:#fff4e0,stroke:#b5760a,color:#111
+    style O fill:#eaf1fe,stroke:#5b8def,color:#111
+```
+
+The recipe is a plain YAML file. It is the contract for the data: which tables,
+which columns, what shape each number has, how the tables link, and the rules
+they must follow. Because it is just a file, you can read it and change it before
+any data is built.
 
 ## Install
 
@@ -91,103 +143,113 @@ second gate.
 /plugin install datagen
 ```
 
-Then just say what you want. For research only:
+Then ask for it in plain words, or use a command.
 
-> Research the customer base for BrightBasket Retail, a mid-size grocery chain
-> in tier-2 Indian cities. Objective: understand it well enough to segment into
-> 4 to 6 groups. Comments: focus on spend and digital engagement.
+For research only:
 
-For the full dataset, ask Dataset-Generator the same way and it handles the
-research itself.
+```
+/datagen:research A mid size grocery chain in tier 2 Indian cities.
+objective: understand the customers well enough to split them into 4 to 6 groups.
+comments: focus on spend and app usage.
+```
+
+For the full dataset:
+
+```
+/datagen:generate A mid size grocery chain in tier 2 Indian cities.
+objective: a sample dataset for testing a segmentation model.
+comments: customers, spending, and engagement tables, about 10k customers.
+```
 
 ## What the engine can do
 
-The generation engine (`plugins/datagen/engine/`) reads a recipe and emits one
-CSV per dataset, fully seeded and reproducible:
+The engine reads a recipe and writes one CSV per table. Everything is seeded, so
+the same recipe gives the same data every time.
 
-- **Distributions:** normal, lognormal, uniform, exponential, poisson, beta,
-  gamma, pareto, zipf, bernoulli, weighted categorical, constant, and datetime
-  (uniform or with monthly and weekday **seasonality**).
-- **Relationships:** induced numeric **correlation** (Gaussian-copula,
-  marginal-preserving), **conditional** distributions keyed on another column,
-  **derived** columns via a sandboxed expression evaluator, and cross-table
-  column **inheritance**.
-- **Multi-table referential integrity:** shared **entity** id pools with 1:1
-  primary keys and many:1 **foreign keys**, so all tables join cleanly.
-- **Constraints:** boolean expressions enforced per row with `resample`, `clip`,
-  `drop`, or `error` repair.
-- **Outliers and missingness:** realistic tails and nullable fractions.
-- **Text columns:** `faker` for structured text (names, cities, emails) and
-  `type: text` for LLM-authored free text via the Anthropic API, batched,
-  concurrent, cached on disk, with `cardinality` cost control. Falls back to
-  clearly-marked placeholders when offline.
-- **Validation report:** per-column stats, distribution-fidelity against the
-  recipe, categorical drift, and FK-integrity checks, rendered as an HTML
-  artifact.
+- **Shapes:** normal, lognormal, uniform, exponential, poisson, beta, gamma,
+  pareto, zipf, bernoulli, weighted categories, constant, and dates with monthly
+  and weekday seasonality.
+- **Links between numbers:** real correlation between columns, different
+  distributions based on another column, computed columns, and pulling a column
+  from a sibling table.
+- **Tables that join:** shared id pools so every table lines up with no orphans.
+- **Rules:** boolean rules enforced per row, fixed by resample, clip, drop, or
+  error.
+- **Outliers and gaps:** realistic long tails and missing values.
+- **Text:** Faker for names, cities, and emails, and real LLM written text for
+  free form fields. It batches and caches the LLM calls to keep cost down, and
+  falls back to clear placeholders when offline.
+- **Check report:** per column stats, how close the data is to the recipe, and a
+  foreign key check, all in one HTML file.
 
-## What you get out
+## What you end up with
+
+Everything for one run lands in `outputs/<business-name>-<date>/`.
 
 ```mermaid
 flowchart LR
-    subgraph out [outputs/business-name-date/]
-        s1[spec.md]
-        s2[research_report.html]
-        s3[recipe.yaml]
-        s4[recipe.html]
-        s5[customers.csv, ...]
-        s6[generation_report.json]
-        s7[report.html]
+    subgraph out [outputs/your-business-date/]
+        F1[research.json]
+        F2[research_report.html]
+        F3[recipe.yaml]
+        F4[recipe.html]
+        F5[customers.csv, ...]
+        F6[report.html]
     end
+    style out fill:#f6f8fc,stroke:#5b8def,color:#111
 ```
 
-Everything for one run lands in `outputs/<business-name>-<date>/`. Run
-Dataset-Research on its own and you get the first two. Run Dataset-Generator and
-you get all of them.
+Run Dataset-Research on its own and you get the first two. Run Dataset-Generator
+and you get all of them.
 
 ## Requirements
 
-- Python 3.10+ with `numpy`, `pandas`, and `PyYAML` (required). `jsonschema`,
-  `Faker`, and `anthropic` are optional; the engine degrades gracefully.
-- `ANTHROPIC_API_KEY` is only needed for `type: text` columns.
+- Python 3.10 or newer with `numpy`, `pandas`, and `PyYAML`. `jsonschema`,
+  `Faker`, and `anthropic` are optional and the engine works without them.
+- `ANTHROPIC_API_KEY` is only needed if you want real LLM written text columns.
 
 ```
 pip install -r plugins/datagen/requirements.txt
 ```
 
-## Using the engine directly
+## Using the engine by hand
 
 ```bash
-# validate a recipe
+# build the research report from a research.json
+python plugins/datagen/engine/render.py research research.json research_report.html
+
+# check a recipe
 python plugins/datagen/engine/validate_recipe.py recipe.yaml
 
-# generate (10% preview, offline)
+# build data, 10 percent preview, no LLM
 python plugins/datagen/engine/generate.py --recipe recipe.yaml --out outputs/run \
        --rows-scale 0.1 --offline
 
-# render review artifacts
-python plugins/datagen/engine/render.py recipe recipe.yaml recipe.html
+# build the check report
 python plugins/datagen/engine/render.py report outputs/run/generation_report.json report.html
 ```
 
-See [`recipe_template.yaml`](plugins/datagen/skills/dataset-generator/recipe_template.yaml)
-for an annotated reference of every recipe feature, and
-[`recipe.schema.json`](plugins/datagen/engine/recipe.schema.json) for the
-authoritative schema.
+See
+[`recipe_template.yaml`](plugins/datagen/skills/dataset-generator/recipe_template.yaml)
+for every recipe feature with comments, and
+[`recipe.schema.json`](plugins/datagen/engine/recipe.schema.json) for the full
+schema.
 
-## Repository layout
+## How the plugin is laid out
 
 ```
-.claude-plugin/marketplace.json      marketplace manifest
+.claude-plugin/marketplace.json        the marketplace entry
 plugins/datagen/
-  .claude-plugin/plugin.json         plugin manifest
-  skills/dataset-research/           SKILL.md, spec_template.md   (standalone)
-  skills/dataset-generator/          SKILL.md, recipe_template.yaml (calls research)
-  engine/                            generate.py, distributions, constraints,
-                                     relations, tables, llm_text, faker_cols,
-                                     safe_eval, validate, render, schema, tests
+  .claude-plugin/plugin.json           the plugin entry
+  agents/                              the 5 research workers
+  commands/                           /datagen:research and /datagen:generate
+  hooks/                              a safe reminder hook for the required inputs
+  skills/dataset-research/           research only, ends with the HTML report
+  skills/dataset-generator/          the full pipeline, calls research first
+  engine/                            the Python engine, schema, and renderers
   requirements.txt
 ```
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

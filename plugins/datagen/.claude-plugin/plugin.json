@@ -1,7 +1,7 @@
 {
   "name": "datagen",
   "version": "0.1.0",
-  "description": "Generate synthetic yet realistic datasets from a business context. Two skills: Dataset-Research, a standalone skill that does web-grounded domain research and produces a visual report backed by a spec file, and Dataset-Generator, which calls Dataset-Research for grounding and then compiles a YAML recipe and builds multi-table datasets with referential integrity, distributions, constraints, and LLM text columns. Both require a business context, an objective, and additional comments before they do anything.",
+  "description": "Generate synthetic yet realistic datasets from a business context. Two skills: Dataset-Research, a standalone skill that fans out parallel web research, validates the numbers, profiles the real customer base, and produces a beautiful illustrated HTML report backed by a compact research.json, and Dataset-Generator, which calls Dataset-Research for grounding and then compiles a YAML recipe and builds multi-table datasets with referential integrity, distributions, constraints, and LLM text columns. Ships five reusable research agents, two slash commands, and a safe input-gate hook. Both skills need a business context and an objective before they do anything.",
   "author": {
     "name": "harishmathh"
   },

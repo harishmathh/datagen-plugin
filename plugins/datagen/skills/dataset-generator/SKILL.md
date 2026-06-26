@@ -1,6 +1,6 @@
 ---
 name: Dataset-Generator
-description: Generate synthetic yet realistic datasets from a business context, objective, and additional comments. End to end it (1) calls the Dataset-Research skill to ground the domain in real-world data and produce a reviewed spec, (2) compiles a human-readable YAML recipe (the generation contract: distributions, relationships, correlations, conditional logic, constraints, multi-table foreign keys, and LLM or Faker text columns), presents it for review, then (3) runs a seeded Python engine to build the linked datasets, fills text columns via the Anthropic API in batches, and produces a validation report. Use whenever the user wants to create a synthetic dataset, fake or mock data, test data, or a realistic sample dataset for a given business, for example "generate customer, spending, and engagement datasets for this retail company". Asks for confirmation at the spec and recipe checkpoints before generating.
+description: Generate synthetic yet realistic datasets from a business context, objective, and additional comments. End to end it (1) calls the Dataset-Research skill to ground the domain in real-world data and produce a reviewed research report (research.json), (2) derives a dataset blueprint and compiles a human-readable YAML recipe (the generation contract: distributions, relationships, correlations, conditional logic, constraints, multi-table foreign keys, and LLM or Faker text columns), presents it for review, then (3) runs a seeded Python engine to build the linked datasets, fills text columns via the Anthropic API in batches, and produces a validation report. Use whenever the user wants to create a synthetic dataset, fake or mock data, test data, or a realistic sample dataset for a given business, for example "generate customer, spending, and engagement datasets for this retail company". Asks for confirmation at the research and recipe checkpoints before generating.
 ---
 
 # Dataset-Generator
@@ -17,22 +17,26 @@ share keys).
 
 ## Required inputs (do not skip this)
 
-Three inputs are mandatory:
+Two inputs are mandatory, one is needed for generation:
 
-1. **Business context** the company and what it does.
-2. **Objective** what the dataset is for.
+1. **Business context** (required) the company and what it does.
+2. **Objective** (required) what the dataset is for.
 3. **Additional comments** which datasets to produce, sizes, and anything
-   special.
+   special. Because generation has to know what tables to build, ask for this if
+   it is missing.
 
-If any of the three is missing or vague, **stop and ask the user.** Do not run
-research, do not write a recipe, do not generate anything. Say plainly what is
-missing and wait. Only with all three in hand do you start. This is a hard gate.
+If the business context or the objective is missing or vague, **stop and ask the
+user.** Do not run research, do not write a recipe, do not generate anything. Say
+plainly what is missing and wait. This is a hard gate. (Dataset-Research, which
+this skill calls first, needs only the business context and objective; the
+comments about which datasets matter from Stage 1b onward.)
 
 ## Where the output goes
 
 One run directory `outputs/<slug>/` (`<business-name>-<YYYYMMDD>`), holding:
-`spec.md`, `research_report.html`, `recipe.yaml`, `recipe.html`, the generated
-`*.csv` files, `generation_report.json`, and `report.html`.
+`research.json`, `research_report.html`, an optional `spec.md`, `recipe.yaml`,
+`recipe.html`, the generated `*.csv` files, `generation_report.json`, and
+`report.html`.
 
 `${CLAUDE_PLUGIN_ROOT}` is the plugin root; the engine lives at
 `${CLAUDE_PLUGIN_ROOT}/engine/`.
@@ -52,21 +56,36 @@ that up front.
 
 ## Stage 1, research (call Dataset-Research)
 
-Invoke the **Dataset-Research** skill with the same three inputs. It does the
-whole web-research phase, writes `outputs/<slug>/spec.md`, renders the HTML
-report, and gets the user to confirm it. **Do not move past the spec until the
-user has validated it.** The confirmed spec, above all its Section 6 dataset
-blueprint and Sections 4 and 5 (distributions, relationships, constraints), is
-the source of truth for the recipe.
+Invoke the **Dataset-Research** skill with the business context, the objective,
+and any comments. It does the whole web-research phase, writes
+`outputs/<slug>/research.json`, renders `research_report.html`, and gets the user
+to confirm it. **Do not move past the research until the user has validated it.**
+The confirmed `research.json` (its business profile, customer base, metric
+shapes, and relationships) is the source of truth for the recipe.
 
-Dataset-Research is the only place research happens. This skill does not redo
-it; it consumes the grounded items the research produced.
+Dataset-Research is the only place research happens, and it is research only: it
+does not propose datasets or design any schema. This skill does not redo the
+research; it consumes the grounded items in `research.json`.
+
+### Stage 1b, derive the dataset blueprint (here, not in research)
+
+Deciding which tables to build, their grain, keys, and sizes is a *generation*
+concern, so it belongs to this skill, not to Dataset-Research. From the user's
+comments (which datasets, sizes) and the confirmed `research.json`, sketch the
+blueprint:
+
+- one table per requested dataset, with its grain ("one row per …") and key
+- which research segments, demographics, and metrics map onto which columns
+- sensible sizes, scaled from the real population in the research
+
+Keep this short; it is the bridge from research to the recipe in Stage 2.
 
 ## Stage 2, compile the recipe
 
-Turn the confirmed spec into `outputs/<slug>/recipe.yaml`. This is the
-generation contract: it has to hold everything needed to build the data, so
-generation is deterministic and reviewable.
+Turn the confirmed `research.json` and the Stage 1b blueprint into
+`outputs/<slug>/recipe.yaml`. This is the generation contract: it has to hold
+everything needed to build the data, so generation is deterministic and
+reviewable.
 
 Use `recipe_template.yaml` (this skill's directory) as the feature reference and
 `${CLAUDE_PLUGIN_ROOT}/engine/recipe.schema.json` as the authority. Encode:
@@ -75,18 +94,19 @@ Use `recipe_template.yaml` (this skill's directory) as the feature reference and
   keyed on `customer_id`) so all tables join cleanly, with full referential
   integrity.
 - **Per-dataset grain, key, and size.** Scale size sensibly from the real
-  population in the spec (for example a ~10k sample of a 1.4M base), capped to
-  something reasonable. Use `rows: "per:<entity>*N"` for child or event tables.
-- **Columns with grounded distributions** (the params from spec Section 4):
+  population in the research (for example a ~10k sample of a 1.4M base), capped
+  to something reasonable. Use `rows: "per:<entity>*N"` for child or event tables.
+- **Columns with grounded distributions** (the params from the research `metrics`):
   numeric (normal, lognormal, poisson, beta, gamma, and so on), categorical
   (weighted), datetime (with seasonality), boolean.
 - **Relationships:** `correlate_with` for numeric correlations; `conditional`
   distributions keyed on another column; `inherit` to pull a column from a
   sibling table (for example `segment` from `customers`) so dependent tables can
   condition on it; `derived` columns for computed fields.
-- **Constraints** (spec Section 5), each with a `repair` strategy.
-- **Outliers** where the spec calls for them (whales, dormant accounts, and so
-  on).
+- **Constraints** (from the research `relationships.constraints`), each with a
+  `repair` strategy.
+- **Outliers** where the research `relationships.outliers` calls for them (whales,
+  dormant accounts, and so on).
 - **Text columns:** `faker` for structured text (names, cities, emails);
   `type: text` with an `llm` block for genuine free text, always with
   `cardinality` and `conditioned_on` set to keep cost down.
@@ -154,7 +174,7 @@ warnings.
 
 ## Confirmation gates (do not skip)
 
-1. After the **spec**, the user validates the grounded research.
+1. After the **research**, the user validates the grounded research report.
 2. After the **recipe**, the user validates the generation contract.
 
 Generation only runs after gate 2. Mention LLM usage and cost before incurring
@@ -165,5 +185,5 @@ it.
 - `recipe_template.yaml` annotated reference for every recipe feature.
 - `${CLAUDE_PLUGIN_ROOT}/engine/recipe.schema.json` recipe JSON schema.
 - `${CLAUDE_PLUGIN_ROOT}/engine/generate.py` the generation engine.
-- `${CLAUDE_PLUGIN_ROOT}/engine/render.py` `spec`, `recipe`, and `report` renderers.
+- `${CLAUDE_PLUGIN_ROOT}/engine/render.py` `research`, `recipe`, and `report` renderers.
 - `${CLAUDE_PLUGIN_ROOT}/engine/validate_recipe.py` standalone recipe validator.

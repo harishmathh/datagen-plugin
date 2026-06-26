@@ -1,0 +1,202 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DataGen research artifact",
+  "description": "Structured output of the Dataset-Research skill. A compact, citation-backed record of domain research about a business context and an objective. The build_research_report.py renderer turns this into a visual HTML report. This file is intentionally free of any dataset, recipe, or generation concepts: research only.",
+  "type": "object",
+  "required": ["business", "objective", "generated", "business_profile", "customer_base", "metrics", "relationships", "sources"],
+  "additionalProperties": false,
+  "properties": {
+    "business": {
+      "type": "string",
+      "description": "One-line description of the business the research is about."
+    },
+    "objective": {
+      "type": "string",
+      "description": "What the research is for, in the user's own framing."
+    },
+    "comments": {
+      "type": "string",
+      "description": "Optional extra context the user gave (geography, focus areas, size). Empty string if none."
+    },
+    "generated": {
+      "type": "string",
+      "description": "Date the research was produced, YYYY-MM-DD."
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["high", "medium", "low"],
+      "description": "Overall confidence in the grounding, based on how much was verifiable."
+    },
+    "summary": {
+      "type": "string",
+      "description": "A short narrative (2 to 4 sentences) of what this kind of business actually looks like in the real world."
+    },
+    "business_profile": {
+      "type": "object",
+      "description": "Plausibility check of every researchable figure against comparable real companies.",
+      "required": ["attributes"],
+      "additionalProperties": false,
+      "properties": {
+        "attributes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "real_world_range", "verdict"],
+            "additionalProperties": false,
+            "properties": {
+              "name": {"type": "string", "description": "e.g. Annual revenue, Store count, CAGR, Marketing ROI."},
+              "stated": {"type": "string", "description": "Value implied or stated by the user, or 'not stated'."},
+              "real_world_range": {"type": "string", "description": "Researched realistic range."},
+              "verdict": {"type": "string", "enum": ["plausible", "adjust", "unverifiable"]},
+              "adjust_to": {"type": "string", "description": "If verdict is adjust, the grounded value to use."},
+              "source": {"type": "string", "description": "Short source label."},
+              "url": {"type": "string", "description": "Source URL."}
+            }
+          }
+        },
+        "sanity_checks": {
+          "type": "array",
+          "description": "Cross-checks like revenue/stores vs benchmark.",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "customer_base": {
+      "type": "object",
+      "description": "Who the real customers are, profiled from research.",
+      "required": ["demographics", "behavior", "segments"],
+      "additionalProperties": false,
+      "properties": {
+        "demographics": {
+          "type": "array",
+          "description": "Demographic breakdowns. Each has a name and a set of named shares that should sum to about 100.",
+          "items": {
+            "type": "object",
+            "required": ["dimension", "breakdown"],
+            "additionalProperties": false,
+            "properties": {
+              "dimension": {"type": "string", "description": "e.g. Age, Gender, Income, Geography."},
+              "breakdown": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["label", "share"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "label": {"type": "string"},
+                    "share": {"type": "number", "description": "Percent, 0 to 100."}
+                  }
+                }
+              },
+              "source": {"type": "string"},
+              "url": {"type": "string"}
+            }
+          }
+        },
+        "behavior": {
+          "type": "array",
+          "description": "Behavioral facts: purchase frequency, basket size, channel mix, loyalty, churn.",
+          "items": {
+            "type": "object",
+            "required": ["metric", "value"],
+            "additionalProperties": false,
+            "properties": {
+              "metric": {"type": "string"},
+              "value": {"type": "string"},
+              "source": {"type": "string"},
+              "url": {"type": "string"}
+            }
+          }
+        },
+        "segments": {
+          "type": "array",
+          "description": "Known customer archetypes in this industry.",
+          "items": {
+            "type": "object",
+            "required": ["name", "share", "traits"],
+            "additionalProperties": false,
+            "properties": {
+              "name": {"type": "string"},
+              "share": {"type": "number", "description": "Approximate percent of the base, 0 to 100."},
+              "traits": {"type": "string", "description": "Distinguishing traits in one line."},
+              "source": {"type": "string"},
+              "url": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "metrics": {
+      "type": "array",
+      "description": "Statistical shape of each key quantity, grounded enough to reuse later.",
+      "items": {
+        "type": "object",
+        "required": ["name", "shape", "params"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {"type": "string", "description": "e.g. Annual spend, Order frequency."},
+          "shape": {"type": "string", "description": "e.g. lognormal, poisson, normal."},
+          "params": {"type": "string", "description": "Grounded parameters, e.g. 'median ~$420, p95 ~$2100' or 'lambda ~24'."},
+          "rationale": {"type": "string", "description": "Why this shape, with source."},
+          "source": {"type": "string"},
+          "url": {"type": "string"}
+        }
+      }
+    },
+    "relationships": {
+      "type": "object",
+      "description": "Real-world dependencies that keep the picture internally consistent.",
+      "required": ["correlations", "conditionals", "constraints"],
+      "additionalProperties": false,
+      "properties": {
+        "correlations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["between", "strength"],
+            "additionalProperties": false,
+            "properties": {
+              "between": {"type": "string", "description": "e.g. spend and frequency."},
+              "strength": {"type": "string", "description": "e.g. rho ~0.5 to 0.7, positive."},
+              "source": {"type": "string"}
+            }
+          }
+        },
+        "conditionals": {
+          "type": "array",
+          "description": "If-then behavioral patterns.",
+          "items": {"type": "string"}
+        },
+        "constraints": {
+          "type": "array",
+          "description": "Hard rules the real world obeys, e.g. num_children < household_size.",
+          "items": {"type": "string"}
+        },
+        "outliers": {
+          "type": "array",
+          "description": "Edge cases like whales or dormant accounts, with rough prevalence.",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "description": "Ambiguities or conflicts where a human decision is needed.",
+      "items": {"type": "string"}
+    },
+    "sources": {
+      "type": "array",
+      "description": "Every source consulted.",
+      "items": {
+        "type": "object",
+        "required": ["title", "url"],
+        "additionalProperties": false,
+        "properties": {
+          "title": {"type": "string"},
+          "url": {"type": "string"},
+          "used_for": {"type": "string"}
+        }
+      }
+    }
+  }
+}

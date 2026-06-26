@@ -1,10 +1,14 @@
-"""Render spec / recipe / validation artifacts into a single self-contained
-HTML file for human review.
+"""Render research / spec / recipe / validation artifacts into a single
+self-contained HTML file for human review.
 
 Usage:
-    python render.py spec     <spec.md>              <out.html>
-    python render.py recipe   <recipe.yaml>          <out.html>
-    python render.py report   <generation_report.json> <out.html>
+    python render.py research  <research.json>          <out.html>
+    python render.py spec      <spec.md>                <out.html>
+    python render.py recipe    <recipe.yaml>            <out.html>
+    python render.py report    <generation_report.json> <out.html>
+
+The `research` mode builds the visual, illustrated research report and is the
+one the Dataset-Research skill uses. It delegates to build_research_report.py.
 
 The HTML is fully inline (no external CSS/JS/fonts) so it can be deployed as a
 Claude Code Artifact under a strict CSP. Tables scroll horizontally inside
@@ -332,12 +336,22 @@ def render_report(json_path: str, out_path: str) -> None:
     Path(out_path).write_text(_page(title, "\n".join(body)), encoding="utf-8")
 
 
+def render_research(json_path: str, out_path: str) -> None:
+    """Visual research report from a research.json. Delegates to the dedicated
+    builder so the chart/illustration logic lives in one place."""
+    import build_research_report as brr
+    data = json.loads(Path(json_path).read_text(encoding="utf-8"))
+    Path(out_path).write_text(brr.build(data), encoding="utf-8")
+
+
 def main(argv: List[str]) -> int:
     if len(argv) < 3:
         print(__doc__)
         return 2
     mode, src, out = argv[0], argv[1], argv[2]
-    if mode == "spec":
+    if mode == "research":
+        render_research(src, out)
+    elif mode == "spec":
         render_spec(src, out)
     elif mode == "recipe":
         render_recipe(src, out)
